@@ -9,7 +9,7 @@
         {
           "path": "/",
           "destination": "",
-          "root": "c:\\bin\\pentaho\\data-integration\\docs\\English\\welcome\\"
+          "root": "static"
         },
         {
           "path": "/mailru/",
