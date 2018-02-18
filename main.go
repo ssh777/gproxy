@@ -2,10 +2,15 @@ package main
 
 import (
 	"log"
+	"flag"
 )
 
+var version = "MUST BE REPLACED WITH ldflags"
+
 func main() {
-	proxy, err := NewGProxy("gproxy.conf")
+	cfgPath := flag.String("c", "gproxy.conf", "config file path")
+	flag.Parse()
+	proxy, err := NewGProxy(*cfgPath)
 	if err != nil {
 		log.Fatal(err)
 	}
