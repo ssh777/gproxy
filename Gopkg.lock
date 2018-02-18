@@ -2,6 +2,18 @@
 
 
 [[projects]]
+  branch = "master"
+  name = "golang.org/x/net"
+  packages = ["context"]
+  revision = "136a25c244d3019482a795d728110278d6ba09a4"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sync"
+  packages = ["errgroup"]
+  revision = "fd80eb99c8f653c847d294a001bdf2a3a6f768f5"
+
+[[projects]]
   name = "gopkg.in/natefinch/lumberjack.v2"
   packages = ["."]
   revision = "a96e63847dc3c67d17befa69c303767e2f84e54f"
@@ -10,6 +22,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7ea75e7030dd2c45d1c742bd3e8448d6b39c79f5ab3d31d99999657e4dc3200c"
+  inputs-digest = "be036914c9aa93f1eeaed2c92626157b3555129e4b17ac7bb684c0288b080ef7"
   solver-name = "gps-cdcl"
   solver-version = 1

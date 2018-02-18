@@ -12,5 +12,3 @@ func main() {
 	defer proxy.Shutdown()
 	log.Fatal(proxy.Start())
 }
-
-

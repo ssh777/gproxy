@@ -9,9 +9,9 @@ import (
 )
 
 type HttpRoute struct {
-	path 		string
-	location 	LocationConf
-	proxy 		*GProxy
+	path     string
+	location LocationConf
+	proxy    *GProxy
 }
 
 func (route *HttpRoute) httpHandler(w http.ResponseWriter, r *http.Request) {

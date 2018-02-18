@@ -10,13 +10,15 @@ import (
 	"log"
 	"time"
 	"fmt"
+	"golang.org/x/sync/errgroup"
 )
 
 type GProxy struct {
-	conf 	*GProxyConf
-	server	*http.Server
-	client	*http.Client
-	routes  []*HttpRoute
+	conf        *GProxyConf
+	serverHttp  *http.Server
+	serverHttps *http.Server
+	client      *http.Client
+	routes      []*HttpRoute
 }
 
 func NewGProxy(confPath string) (*GProxy, error) {
@@ -44,16 +46,24 @@ func NewGProxy(confPath string) (*GProxy, error) {
 }
 
 func (p *GProxy) Start() error {
-	if p.server == nil {
-		return errors.New("Proxy not initialized")
+	var g errgroup.Group
+	if p.serverHttp != nil {
+		g.Go(func() error {
+			return p.serverHttp.ListenAndServe()
+		})
 	}
-	return p.server.ListenAndServe()
+	if p.serverHttps != nil {
+		g.Go(func() error {
+			return p.serverHttp.ListenAndServeTLS(p.conf.Https.CertFile, p.conf.Https.KeyFile)
+		})
+	}
+	return g.Wait()
 }
 
 func (p *GProxy) Shutdown() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	return p.server.Shutdown(ctx)
+	return p.serverHttp.Shutdown(ctx)
 }
 
 func (p *GProxy) initLog() {
@@ -76,17 +86,27 @@ func (p *GProxy) initClient() error {
 		DisableCompression: false,
 	}
 	p.client = &http.Client{
-		Transport:		tr,
-		Timeout:		time.Duration(connectionConf.Timeout) * time.Second,
+		Transport: tr,
+		Timeout:   time.Duration(connectionConf.Timeout) * time.Second,
 	}
 	return nil
 }
 
 func (p *GProxy) initServer() error {
+	if e := p.initHttpServer(); e != nil {
+		return e
+	}
+	if e := p.initHttpsServer(); e != nil {
+		return e
+	}
+	return nil
+}
+
+func (p *GProxy) initHttpServer() error {
 	httpConf := p.conf.Http
 	serverConf := httpConf.Server
 	listenAddr := fmt.Sprintf(":%d", httpConf.Server.Port)
-	p.server = &http.Server{
+	p.serverHttp = &http.Server{
 		Addr:           listenAddr,
 		ReadTimeout:    time.Duration(serverConf.ReadTimeout) * time.Second,
 		WriteTimeout:   time.Duration(serverConf.WriteTimeout) * time.Second,
@@ -105,9 +125,43 @@ func (p *GProxy) initServer() error {
 				return errors.New(fmt.Sprint("Empty destination for location [%s]", location.Path))
 			}
 			route := &HttpRoute{
-				path: location.Path,
+				path:     location.Path,
 				location: location,
-				proxy: p,
+				proxy:    p,
+			}
+			http.Handle(location.Path, http.HandlerFunc(route.httpHandler))
+			p.routes = append(p.routes, route)
+		}
+	}
+	return nil
+}
+
+func (p *GProxy) initHttpsServer() error {
+	httpConf := p.conf.Https
+	serverConf := httpConf.Server
+	listenAddr := fmt.Sprintf(":%d", httpConf.Server.Port)
+	p.serverHttp = &http.Server{
+		Addr:           listenAddr,
+		ReadTimeout:    time.Duration(serverConf.ReadTimeout) * time.Second,
+		WriteTimeout:   time.Duration(serverConf.WriteTimeout) * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+	p.routes = make([]*HttpRoute, len(serverConf.Locations))
+	for _, location := range serverConf.Locations {
+		if location.Path == "" {
+			return errors.New("Empty location path")
+		}
+		if location.StaticRoot != "" {
+			fs := http.FileServer(http.Dir(location.StaticRoot))
+			http.Handle(location.Path, fs)
+		} else {
+			if location.Destination == "" {
+				return errors.New(fmt.Sprint("Empty destination for location [%s]", location.Path))
+			}
+			route := &HttpRoute{
+				path:     location.Path,
+				location: location,
+				proxy:    p,
 			}
 			http.Handle(location.Path, http.HandlerFunc(route.httpHandler))
 			p.routes = append(p.routes, route)
