@@ -34,7 +34,7 @@ func (route *HttpRoute) httpHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(resp.StatusCode)
 	respReader := resp.Body
-	if route.isGziped(r) {
+	if route.isGziped(resp) {
 		respReader, _ = gzip.NewReader(resp.Body)
 	}
 	_, err = io.Copy(w, respReader)
@@ -54,9 +54,15 @@ func (route *HttpRoute) getDestinationUrl(r *http.Request) string {
 	return url;
 }
 
-func (route *HttpRoute) isGziped(r *http.Request) bool {
-	ae := r.Header["Accept-Encoding"]
-	for _, h := range ae {
+func (route *HttpRoute) isGziped(r *http.Response) bool {
+	header, ok := r.Header["Content-Encoding"]
+	if !ok {
+		header, ok = r.Header["Transfer-Encoding"]
+		if !ok {
+			return false
+		}
+	}
+	for _, h := range header {
 		if strings.Contains(h, "gzip") {
 			return true
 		}
