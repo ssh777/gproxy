@@ -18,7 +18,8 @@ type GProxy struct {
 	serverHttp  *http.Server
 	serverHttps *http.Server
 	client      *http.Client
-	routes      []*HttpRoute
+	httpRoutes  []*HttpRoute
+	httpsRoutes []*HttpRoute
 }
 
 func NewGProxy(confPath string) (*GProxy, error) {
@@ -49,12 +50,20 @@ func (p *GProxy) Start() error {
 	var g errgroup.Group
 	if p.serverHttp != nil {
 		g.Go(func() error {
-			return p.serverHttp.ListenAndServe()
+			err := p.serverHttp.ListenAndServe()
+			if err != nil {
+				log.Println(err)
+			}
+			return err
 		})
 	}
 	if p.serverHttps != nil {
 		g.Go(func() error {
-			return p.serverHttp.ListenAndServeTLS(p.conf.Https.CertFile, p.conf.Https.KeyFile)
+			err := p.serverHttps.ListenAndServeTLS(p.conf.Https.CertFile, p.conf.Https.KeyFile)
+			if err != nil {
+				log.Println(err)
+			}
+			return err
 		})
 	}
 	return g.Wait()
@@ -112,7 +121,7 @@ func (p *GProxy) initHttpServer() error {
 		WriteTimeout:   time.Duration(serverConf.WriteTimeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	p.routes = make([]*HttpRoute, len(serverConf.Locations))
+	p.httpRoutes = make([]*HttpRoute, len(serverConf.Locations))
 	for _, location := range serverConf.Locations {
 		if location.Path == "" {
 			return errors.New("Empty location path")
@@ -130,7 +139,7 @@ func (p *GProxy) initHttpServer() error {
 				proxy:    p,
 			}
 			http.Handle(location.Path, http.HandlerFunc(route.httpHandler))
-			p.routes = append(p.routes, route)
+			p.httpRoutes = append(p.httpRoutes, route)
 		}
 	}
 	return nil
@@ -140,13 +149,13 @@ func (p *GProxy) initHttpsServer() error {
 	httpConf := p.conf.Https
 	serverConf := httpConf.Server
 	listenAddr := fmt.Sprintf(":%d", httpConf.Server.Port)
-	p.serverHttp = &http.Server{
+	p.serverHttps = &http.Server{
 		Addr:           listenAddr,
 		ReadTimeout:    time.Duration(serverConf.ReadTimeout) * time.Second,
 		WriteTimeout:   time.Duration(serverConf.WriteTimeout) * time.Second,
 		MaxHeaderBytes: 1 << 20,
 	}
-	p.routes = make([]*HttpRoute, len(serverConf.Locations))
+	p.httpsRoutes = make([]*HttpRoute, len(serverConf.Locations))
 	for _, location := range serverConf.Locations {
 		if location.Path == "" {
 			return errors.New("Empty location path")
@@ -164,7 +173,7 @@ func (p *GProxy) initHttpsServer() error {
 				proxy:    p,
 			}
 			http.Handle(location.Path, http.HandlerFunc(route.httpHandler))
-			p.routes = append(p.routes, route)
+			p.httpsRoutes = append(p.httpRoutes, route)
 		}
 	}
 	return nil

@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"strings"
 	"log"
 	"compress/gzip"
 	"io"
@@ -32,9 +31,10 @@ func (route *HttpRoute) httpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	copyHeaders(w, resp)
 	w.WriteHeader(resp.StatusCode)
 	respReader := resp.Body
-	if route.isGziped(resp) {
+	if isDecompressionRequired(r, resp) {
 		respReader, _ = gzip.NewReader(resp.Body)
 	}
 	_, err = io.Copy(w, respReader)
@@ -52,20 +52,4 @@ func (route *HttpRoute) getDestinationUrl(r *http.Request) string {
 		url += "?" + r.URL.RawQuery;
 	}
 	return url;
-}
-
-func (route *HttpRoute) isGziped(r *http.Response) bool {
-	header, ok := r.Header["Content-Encoding"]
-	if !ok {
-		header, ok = r.Header["Transfer-Encoding"]
-		if !ok {
-			return false
-		}
-	}
-	for _, h := range header {
-		if strings.Contains(h, "gzip") {
-			return true
-		}
-	}
-	return false
 }
