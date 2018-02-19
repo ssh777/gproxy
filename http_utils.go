@@ -39,7 +39,7 @@ func isDecompressionRequired(request *http.Request, response *http.Response) boo
 			}
 		}
 	}
-	if !requestCompressed {
+	if !responceCompressed {
 		if h := getHeaderValue(response.Header, "transfer-encoding"); h != nil {
 			for _, h := range h {
 				h = strings.ToLower(h)
@@ -55,7 +55,7 @@ func isDecompressionRequired(request *http.Request, response *http.Response) boo
 
 func getHeaderValue(h http.Header, key string) []string {
 	for k, v := range h {
-		if strings.ToLower(key) == strings.ToLower(k) {
+		if key == strings.ToLower(k) {
 			return v
 		}
 	}
