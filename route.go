@@ -46,7 +46,10 @@ func (route *HttpRoute) httpHandler(w http.ResponseWriter, r *http.Request) {
 func (route *HttpRoute) getDestinationUrl(r *http.Request) string {
 	url := route.location.Destination
 	if path := r.URL.Path[len(route.path):]; path != "" {
-		url += "/" + path
+		if url[len(url)-1:] != "/" {
+			url += "/"
+		}
+		url += path
 	}
 	if r.URL.RawQuery != "" {
 		url += "?" + r.URL.RawQuery;
