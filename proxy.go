@@ -79,9 +79,10 @@ func (p *GProxy) initLog() {
 	log.SetOutput(&lumberjack.Logger{
 		Filename:   p.conf.Log,
 		MaxSize:    64,
-		MaxBackups: 3,
+		MaxBackups: 32,
 		MaxAge:     1,
 		LocalTime:  true,
+		Compress:   true,
 	})
 
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
